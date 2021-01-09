@@ -3,6 +3,7 @@ module NumStruc where
 import           Control.Applicative
 import           Control.Monad.Trans.State
 import           Data.Maybe
+import           Prelude hiding (fst, snd)
 
 import           Queue
 

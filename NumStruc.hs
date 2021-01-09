@@ -1,5 +1,6 @@
 module NumStruc where
 
+import           Control.Applicative
 import           Control.Monad.Trans.State
 import           Data.Maybe
 
@@ -9,7 +10,7 @@ primeList :: [Integer]
 primeList = filterAcc isPrimeAcc [2..] emptyQueue
 
 ulamList :: [Integer]
-ulamList = 1 : 2 : filterAcc isUlamAcc [3..] (makeQueue [1, 2])
+ulamList = 1 : 2 : filterAcc isUlamAcc [3..] (makeQueue [2, 1])
 
 filterAcc :: (a -> QueueS a Bool) -> [a] -> Queue a -> [a]
 filterAcc _ [] _
@@ -36,33 +37,26 @@ isPrimeAcc n = do
 
 isUlamAcc :: Integer -> QueueS Integer Bool
 isUlamAcc n = do
-  us <- get
-  pop
-  isUlamAcc' n 0 us
+  fst <- popFront
+  lst <- pop
+  isUlamAcc' 0 fst lst
   where
-    isUlamAcc' _ 2 _
+    isUlamAcc' 2 _ _
       = return False
-    isUlamAcc' n c us
-      | empty us  = return $ c == 1
-      | otherwise = do
-        let ((Just u), us') = runState pop us
-        if u > n `div` 2
-          then return $ c == 1
-          else test u us' c
+    isUlamAcc' c fst lst = do
+      let sum = liftA2 (+) fst lst
+      if isNothing sum
+        then return $ c == 1
+        else test (fromJust sum)
         where
-          test u us c = do
-            u' <- pop
-            if isNothing u'
-              then do
-                put us
-                pop
-                isUlamAcc' n c us
-              else test' (u + fromJust (u'))
-              where
-                test' sum 
-                  | sum < n   = test u us c
-                  | sum == n  = test u us (c + 1)
-                  | otherwise = do
-                    put us
-                    pop
-                    isUlamAcc' n c us
+          test sum
+            | sum > n   = do
+              fst' <- popFront
+              isUlamAcc' c fst' lst
+            | sum < n   = do
+              lst' <- pop
+              isUlamAcc' c fst lst'
+            | otherwise = do
+              fst' <- popFront
+              lst' <- pop
+              isUlamAcc' (c + 1) fst' lst'

@@ -2,7 +2,7 @@
 Practicing some Haskell ideas
 
 # Queue.hs
-Implements queue (FIFO) in Haskell with amortised constant time operation  
+Implements deque in Haskell with amortised constant time operation  
 Idea from https://rafal.io/posts/haskell-queues.html  
 
 # NumStruc.hs

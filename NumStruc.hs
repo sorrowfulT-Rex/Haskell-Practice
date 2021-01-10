@@ -21,11 +21,11 @@ filterAcc f (a : as) q
   | otherwise = filterAcc f as q
   where
     passed = evalState (f a) q
-    q'     = execState (push a) q
+    q'     = execState (pushS a) q
 
 isPrimeAcc :: Integer -> QueueS Integer Bool
 isPrimeAcc n = do
-  this <- pop
+  this <- popS
   if isNothing this
     then return True
     else do
@@ -38,8 +38,8 @@ isPrimeAcc n = do
 
 isUlamAcc :: Integer -> QueueS Integer Bool
 isUlamAcc n = do
-  fst <- popFront
-  lst <- pop
+  fst <- popFrontS
+  lst <- popS
   isUlamAcc' 0 fst lst
   where
     isUlamAcc' 2 _ _
@@ -52,12 +52,12 @@ isUlamAcc n = do
         where
           test sum
             | sum > n   = do
-              fst' <- popFront
+              fst' <- popFrontS
               isUlamAcc' c fst' lst
             | sum < n   = do
-              lst' <- pop
+              lst' <- popS
               isUlamAcc' c fst lst'
             | otherwise = do
-              fst' <- popFront
-              lst' <- pop
+              fst' <- popFrontS
+              lst' <- popS
               isUlamAcc' (c + 1) fst' lst'

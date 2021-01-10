@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Queue where
 
 -- Making a deque with amortised O(1) accesses
@@ -7,9 +9,9 @@ import           Data.Maybe
 
 -- Has an inbox (the first half of elements) and an outbox (the second half)
 -- Ideally, both halves should have similar number of elements
--- Note that the Queue constructor is strict; if you use InfQueue, make sure that it is indeed infinite
+-- Note that the Queue constructor is strict; for deque with infinite elements, us InfQueue
+-- If you use InfQueue, make sure that it is indeed infinite (IMPORTANT!)
 data Queue a = Queue Int ![a] Int ![a] | InfQueue [a] [a]
-  -- deriving Show
 
 instance Show a => Show (Queue a) where
   show (Queue _ [] _ [])
@@ -20,35 +22,57 @@ instance Show a => Show (Queue a) where
     = '[' : show a ++ "]"
   -- Showing the first and the last elements
   show q
-    = '[' : show (fromJust $ evalState peekFront q) ++ "..." ++ show (fromJust $ evalState peek q) ++ "]"
+    = '[' : show (fromJust $ evalState peekFront q) ++ 
+      "..." ++ 
+      show (fromJust $ evalState peek q) ++ 
+      "]"
+
+
+-- Functor & Applicative Instances
 
 instance Functor Queue where
   fmap f (Queue inl ins ol os)
     = Queue inl (map f ins) ol (map f os)
+  fmap f (InfQueue ins os)
+    = InfQueue (map f ins) (map f os)
 
 instance Applicative Queue where
+  -- In this implementation, pure f <*> a <*> b works like zipWith f a b
   pure x
     = InfQueue (repeat x) (repeat x)
+  (<*>) (InfQueue ins os) (InfQueue ins' os')
+    = InfQueue (zipWith ($) ins ins') (zipWith ($) os os')
   (<*>) (Queue _ [] _ []) _
     = emptyQueue
   (<*>) _ (Queue _ [] _ [])
     = emptyQueue
   (<*>) fs xs
-    = execState (push (f x)) (fr <*> xr)
+    = execState (pushS (f x)) (fr <*> xr)
     where
-      (Just f, fr) = runState popFront fs
-      (Just x, xr) = runState popFront xs
+      (Just f, fr) = runState popFrontS fs
+      (Just x, xr) = runState popFrontS xs
 
--- Convert deque to list
+
+-- Display functions
+
+-- Convert the deque to list
 toList :: Queue a -> [a]
 toList (Queue _ ins _ os)
   = ins ++ reverse os
 toList (InfQueue ins _)
   = ins
 
--- Making a State instance for more convenient manipulations
-type QueueS a = State (Queue a)
+-- Print out the entire deque with its structure
+showQueue :: Show a => Queue a -> String
+showQueue (Queue _ ins _ os)
+  = "inbox:  " ++ show ins ++ ";\noutbox: " ++ show os
+showQueue (InfQueue ins _)
+  = error "Cannot print an infinite queue; use take/takeEnd to see the first/last finite elements"
 
+
+-- Initialisation
+
+-- an empty deque
 emptyQueue :: Queue a
 emptyQueue
   = Queue 0 [] 0 []
@@ -56,13 +80,11 @@ emptyQueue
 -- Initialise a deque
 makeQueue :: [a] -> Queue a
 makeQueue as
-  = Queue len fr len' re
+  = Queue len fr len' (reverse re)
   where
-    (q, r)    = quotRem (length as) 2
-    len       = q
-    len'      = q + r
-    (fr, re') = splitAt len as
-    re        = reverse re'
+    (len, r) = quotRem (length as) 2
+    len'     = len + r
+    (fr, re) = splitAt len as
 
 -- Check if the deque is empty
 empty :: Queue a -> Bool
@@ -71,6 +93,10 @@ empty (Queue _ [] _ [])
 empty _
   = False
 
+
+-- Access Functions
+
+-- Helper function for pushing and popping
 -- When either the inbox or the outbox is too small compared to the other, shuffle it to make them even
 check :: Queue a -> Queue a
 check q@(Queue inl ins ol os)
@@ -84,93 +110,64 @@ check q@(Queue inl ins ol os)
 check infQ
   = infQ
 
--- Add element to the front of the deque
-push :: a -> QueueS a ()
-push e 
-  = state $ \q -> ((), push' e q)
-  where
-    push' e (Queue inl ins ol os) 
-      = check (Queue (inl + 1) (e : ins) ol os)
-    push' e (InfQueue ins os)
-      = InfQueue (e : ins) os
-
--- Add element to the end of the deque
-pushEnd :: a -> QueueS a ()
-pushEnd e 
-  = state $ \q -> ((), pushEnd' e q)
-  where
-    pushEnd' e (Queue inl ins ol os) 
-      = check $ Queue inl ins (ol + 1) (e : os)
-    push' e (InfQueue ins os)
-      = InfQueue ins (e : os)
-
--- Retrieve element from the end of the deque
-pop :: QueueS a (Maybe a)
-pop 
-  = state $ \q -> pop' q
-  where
-    pop' q@(Queue _ [] _ [])
-      = (Nothing, q)
-    pop' (Queue _ [a] _ [])
-      = (Just a, emptyQueue)
-    pop' (Queue _ [] _ [a])
-      = (Just a, emptyQueue)
-    pop' (Queue inl ins ol (o : os))
-      = (Just o, check (Queue inl ins (ol - 1) os))
-    pop' (InfQueue ins (o : os))
-      = (Just o, InfQueue ins os)
-    pop' _
-      = error "This InfQueue is not infinite!"
-
--- Retrieve element from the front of the deque
-popFront :: QueueS a (Maybe a)
-popFront
-  = state $ \q -> popFront' q 
-  where
-    popFront' q@(Queue _ [] _ [])
-      = (Nothing, q)
-    popFront' (Queue _ [a] _ [])
-      = (Just a, emptyQueue)
-    popFront' (Queue _ [] _ [a])
-      = (Just a, emptyQueue)
-    popFront' (Queue inl (i : ins) ol os)
-      = (Just i, check (Queue (inl - 1) ins ol os))
-    popFront' (InfQueue (i : ins) os)
-      = (Just i, InfQueue ins os)
-    popFront' _
-      = error "This InfQueue is not infinite!"
-
--- Look at the last element of the deque without changing the deque
-peek :: QueueS a (Maybe a)
-peek = do
-  e <- pop
-  if isNothing e
-    then return e
-    else do
-      pushEnd (fromJust e)
-      return e
-
--- Look at the first element of the deque without changing the deque
-peekFront :: QueueS a (Maybe a)
-peekFront = do
-  e <- popFront
-  if isNothing e
-    then return e
-    else do
-      push (fromJust e)
-      return e
-
 -- Length of the deque
 len :: Queue a -> Int
-len (Queue inl _ ol _) 
+len (Queue inl _ ol _)
   = inl + ol
 len _ 
   = error "Cannot calculate length for InfQueue!"
 
+-- Pushing an element to the front of the deque
+push :: a -> Queue a -> Queue a
+push e (Queue inl ins ol os) 
+  = check (Queue (inl + 1) (e : ins) ol os)
+push e (InfQueue ins os)
+  = InfQueue (e : ins) os
+
+-- Popping an element from the end of the deque
+pop :: Queue a -> (Maybe a, Queue a)
+pop q@(Queue _ [] _ [])
+  = (Nothing, q)
+pop (Queue _ [a] _ [])
+  = (Just a, emptyQueue)
+pop (Queue _ [] _ [a])
+  = (Just a, emptyQueue)
+pop (Queue inl ins ol (o : os))
+  = (Just o, check (Queue inl ins (ol - 1) os))
+pop (InfQueue ins (o : os))
+  = (Just o, InfQueue ins os)
+pop _
+  = error "This InfQueue is not infinite!"
+
+-- Pushing an element to the end of the deque
+pushEnd :: a -> Queue a -> Queue a
+pushEnd e (Queue inl ins ol os) 
+  = check $ Queue inl ins (ol + 1) (e : os)
+pushEnd e (InfQueue ins os)
+  = InfQueue ins (e : os)
+
+-- Popping an element from the front of the deque
+popFront :: Queue a -> (Maybe a, Queue a)
+popFront q@(Queue _ [] _ [])
+  = (Nothing, q)
+popFront (Queue _ [a] _ [])
+  = (Just a, emptyQueue)
+popFront (Queue _ [] _ [a])
+  = (Just a, emptyQueue)
+popFront (Queue inl (i : ins) ol os)
+  = (Just i, check (Queue (inl - 1) ins ol os))
+popFront (InfQueue (i : ins) os)
+  = (Just i, InfQueue ins os)
+popFront _
+  = error "This InfQueue is not infinite!"
+
+
+-- More functions
+
 -- Split the deque at the nth element (inclusive) from the front
 splitAtQ :: Int -> Queue a -> (Queue a, Queue a)
-splitAtQ n q = 
-  splitAtQ' n emptyQueue q
+splitAtQ n q
+  = splitAtQ' n emptyQueue q
   where
     splitAtQ' 0 tk dr
       = (tk, dr)
@@ -179,13 +176,13 @@ splitAtQ n q =
     splitAtQ' i tk dr
       = splitAtQ' (i - 1) tk' dr'
       where
-        (Just e, dr') = runState popFront dr
-        tk'      = execState (pushEnd e) tk
+        (Just e, dr') = runState popFrontS dr
+        tk'           = execState (pushEndS e) tk
 
 -- Split the deque at the nth element (inclusive) from the end
 splitAtQEnd :: Int -> Queue a -> (Queue a, Queue a)
-splitAtQEnd n q = 
-  splitAtQEnd' n emptyQueue q
+splitAtQEnd n q
+  = splitAtQEnd' n emptyQueue q
   where
     splitAtQEnd' 0 tk dr
       = (tk, dr)
@@ -194,8 +191,8 @@ splitAtQEnd n q =
     splitAtQEnd' i tk dr
       = splitAtQEnd' (i - 1) tk' dr'
       where
-        (Just e, dr') = runState pop dr
-        tk'      = execState (push e) tk
+        (Just e, dr') = runState popS dr
+        tk'           = execState (pushS e) tk
 
 -- Take/drop the first nth element (inclusive)
 takeQ, dropQ :: Int -> Queue a -> Queue a
@@ -210,3 +207,48 @@ takeQEnd
   = (fst .) . splitAtQEnd
 dropQEnd
   = (snd .) . splitAtQEnd
+
+
+-- State Functions
+
+type QueueS a = State (Queue a)
+
+-- Add element to the front of the deque
+pushS :: a -> QueueS a ()
+pushS
+  = state . ((() ,) .) . push
+
+-- Add element to the end of the deque
+pushEndS :: a -> QueueS a ()
+pushEndS
+  = state . ((() ,) .) . pushEnd
+
+-- Retrieve element from the end of the deque
+popS :: QueueS a (Maybe a)
+popS 
+  = state pop
+
+-- Retrieve element from the front of the deque
+popFrontS :: QueueS a (Maybe a)
+popFrontS
+  = state popFront 
+
+-- Look at the last element of the deque without changing the deque
+peek :: QueueS a (Maybe a)
+peek = do
+  e <- popS
+  if isNothing e
+    then return e
+    else do
+      pushEndS (fromJust e)
+      return e
+
+-- Look at the first element of the deque without changing the deque
+peekFront :: QueueS a (Maybe a)
+peekFront = do
+  e <- popFrontS
+  if isNothing e
+    then return e
+    else do
+      pushS (fromJust e)
+      return e

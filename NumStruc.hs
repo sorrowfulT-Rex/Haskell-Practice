@@ -1,17 +1,72 @@
-module NumStruc where
-
 import           Control.Applicative
 import           Control.Monad.Trans.State
 import           Data.Maybe
 import           Prelude hiding (fst, snd)
+import           System.IO
+import           System.IO.Unsafe
 
 import           Queue
 
-primeList :: [Integer]
-primeList = filterAcc isPrimeAcc [2..] emptyQueue
+-- Read the primes already calculated
+primeListR :: IO [Integer]
+primeListR = do
+  h   <- openFile "primes.txt" ReadWriteMode
+  raw <- hGetContents h
+  return $ map read (words raw)
 
-ulamList :: [Integer]
-ulamList = 1 : 2 : filterAcc isUlamAcc [3..] (makeQueue [2, 1])
+-- Generate an inifite list of primes
+primeList :: IO [Integer]
+primeList = do
+  -- Get current primes
+  list <- primeListR
+  -- Infinite list of new primes since current primes
+  let list' = execState primeListS list
+  -- Write these new primes into the file
+  rst <- primeListW list' False
+  return $ list ++ rst
+  where
+    primeListS = do
+      curList <- get
+      let queue = makeQueue (reverse curList)
+      let last  = evalState popFrontS queue
+      let start = maybe 2 succ last
+      -- Main function to generate new primes is isPrimeAcc, using my deque
+      put $ filterAcc isPrimeAcc [start..] queue
+    primeListW (a : as) b 
+      | b         = do
+        appendFile "primes.txt" (' ' : show a)
+        rst <- unsafeInterleaveIO $ primeListW as True
+        return $ a : rst
+      | otherwise = unsafeInterleaveIO $ primeListW (a : as) True
+
+-- This has similar structure as above, but I'm writing it again to strengthen my memory
+-- Read the ulam numbers already calculated
+ulamListR :: IO [Integer]
+ulamListR = do
+  h   <- openFile "ulams.txt" ReadWriteMode
+  raw <- hGetContents h
+  return $ map read (words raw)
+
+-- Generate an infiite list of ulam numbers
+ulamList :: IO [Integer]
+ulamList = do
+  list <- ulamListR
+  let list' = execState ulamListS list
+  rst <- ulamListW list' False
+  return $ 1 : 2 : list ++ rst
+  where
+    ulamListS = do
+      curList <- get
+      let queue = makeQueue (reverse (1 : 2 : curList))
+      let last  = evalState popFrontS queue
+      let start = maybe 2 succ last
+      put $ filterAcc isUlamAcc [start..] queue
+    ulamListW (a : as) b 
+      | b         = do
+        appendFile "ulams.txt" (' ' : show a)
+        rst <- unsafeInterleaveIO $ ulamListW as True
+        return $ a : rst
+      | otherwise = unsafeInterleaveIO $ ulamListW (a : as) True
 
 filterAcc :: (a -> QueueS a Bool) -> [a] -> Queue a -> [a]
 filterAcc _ [] _

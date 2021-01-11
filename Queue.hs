@@ -28,6 +28,12 @@ instance Show a => Show (Queue a) where
       "]"
 
 
+-- Foldable Instances
+
+-- instance Foldable Queue where
+--   TODO
+
+
 -- Functor & Applicative Instances
 
 instance Functor Queue where
@@ -43,9 +49,9 @@ instance Applicative Queue where
   (<*>) (InfQueue ins os) (InfQueue ins' os')
     = InfQueue (zipWith ($) ins ins') (zipWith ($) os os')
   (<*>) (Queue _ [] _ []) _
-    = emptyQueue
+    = emptyQ
   (<*>) _ (Queue _ [] _ [])
-    = emptyQueue
+    = emptyQ
   (<*>) fs xs
     = execState (pushS (f x)) (fr <*> xr)
     where
@@ -55,31 +61,38 @@ instance Applicative Queue where
 
 -- Display functions
 
--- Convert the deque to list
-toList :: Queue a -> [a]
-toList (Queue _ ins _ os)
+-- Convert the deque to list from left to right
+toListF :: Queue a -> [a]
+toListF (Queue _ ins _ os)
   = ins ++ reverse os
-toList (InfQueue ins _)
+toListF (InfQueue ins _)
   = ins
 
+-- Convert the deque to list from right to left
+toListR :: Queue a -> [a]
+toListR (Queue _ ins _ os)
+  = os ++ reverse ins
+toListR (InfQueue _ os)
+  = os
+
 -- Print out the entire deque with its structure
-showQueue :: Show a => Queue a -> String
-showQueue (Queue _ ins _ os)
-  = "inbox:  " ++ show ins ++ ";\noutbox: " ++ show os
-showQueue (InfQueue ins _)
+showQ :: Show a => Queue a -> String
+showQ (Queue inl ins ol os)
+  = "Inbox (length " ++ show inl ++ "):  " ++ show ins ++ ";\nOutbox (length " ++ show ol ++ "): " ++ show os
+showQ _
   = error "Cannot print an infinite queue; use take/takeEnd to see the first/last finite elements"
 
 
 -- Initialisation
 
 -- an empty deque
-emptyQueue :: Queue a
-emptyQueue
+emptyQ :: Queue a
+emptyQ
   = Queue 0 [] 0 []
 
 -- Initialise a deque
-makeQueue :: [a] -> Queue a
-makeQueue as
+makeQ :: [a] -> Queue a
+makeQ as
   = Queue len fr len' (reverse re)
   where
     (len, r) = quotRem (length as) 2
@@ -129,9 +142,9 @@ pop :: Queue a -> (Maybe a, Queue a)
 pop q@(Queue _ [] _ [])
   = (Nothing, q)
 pop (Queue _ [a] _ [])
-  = (Just a, emptyQueue)
+  = (Just a, emptyQ)
 pop (Queue _ [] _ [a])
-  = (Just a, emptyQueue)
+  = (Just a, emptyQ)
 pop (Queue inl ins ol (o : os))
   = (Just o, check (Queue inl ins (ol - 1) os))
 pop (InfQueue ins (o : os))
@@ -151,15 +164,26 @@ popFront :: Queue a -> (Maybe a, Queue a)
 popFront q@(Queue _ [] _ [])
   = (Nothing, q)
 popFront (Queue _ [a] _ [])
-  = (Just a, emptyQueue)
+  = (Just a, emptyQ)
 popFront (Queue _ [] _ [a])
-  = (Just a, emptyQueue)
+  = (Just a, emptyQ)
 popFront (Queue inl (i : ins) ol os)
   = (Just i, check (Queue (inl - 1) ins ol os))
 popFront (InfQueue (i : ins) os)
   = (Just i, InfQueue ins os)
 popFront _
   = error "This InfQueue is not infinite!"
+
+-- Contatenate two deques
+concatQ :: Queue a -> Queue a -> Queue a
+concatQ (InfQueue ins os) (Queue _ ins' _ os')
+  = InfQueue ins (os' ++ reverse ins' ++ os)
+concatQ (Queue _ ins _ os) (InfQueue ins' os')
+  = InfQueue (ins ++ reverse os ++ ins') os'
+concatQ (Queue inl ins ol os) (Queue inl' ins' ol' os')
+  = check $ Queue (inl + ol) (ins ++ reverse os) (inl' + ol') (os' ++ reverse ins')
+concatQ _ _
+  = error "Cannot concat two infinite queues!"
 
 
 -- Operators
@@ -204,31 +228,37 @@ infixl 5 <<|
     index q i n
       = index (execState popS q) (i - 1) n
 
+-- concat (left associative)
+infixr 5 +<+
+(+<+) :: Queue a -> Queue a -> Queue a
+(+<+)
+  = concatQ
 
--- concat
-infixr 5 +++
-(+++) :: Queue a -> Queue a -> Queue a
-(InfQueue ins os) +++ (Queue _ ins' _ os')
-  = InfQueue ins (os' ++ reverse ins' ++ os)
-(Queue _ ins _ os) +++ (InfQueue ins' os')
-  = InfQueue (ins ++ reverse os ++ ins') os'
-(Queue inl ins ol os) +++ (Queue inl' ins' ol' os')
-  = check $ Queue (inl + ol) (ins ++ reverse os) (inl' + ol') (os' ++ reverse ins')
-_ +++ _
-  = error "Cannot concat two infinite queues!"
+-- concat (right associative)
+infixr 5 +>+
+(+>+) :: Queue a -> Queue a -> Queue a
+(+>+)
+  = concatQ
 
 
 -- More functions
 
+-- Reverse the deque
+reverseQ :: Queue a -> Queue a
+reverseQ (Queue inl ins ol os)
+  = Queue ol os inl ins
+reverseQ (InfQueue ins os)
+  = InfQueue os ins
+
 -- Split the deque at the nth element (inclusive) from the front
 splitAtQ :: Int -> Queue a -> (Queue a, Queue a)
 splitAtQ n q
-  = splitAtQ' n emptyQueue q
+  = splitAtQ' n emptyQ q
   where
     splitAtQ' 0 tk dr
       = (tk, dr)
     splitAtQ' i tk (Queue _ [] _ [])
-      = (tk, emptyQueue)
+      = (tk, emptyQ)
     splitAtQ' i tk dr
       = splitAtQ' (i - 1) tk' dr'
       where
@@ -238,12 +268,12 @@ splitAtQ n q
 -- Split the deque at the nth element (inclusive) from the end
 splitAtQEnd :: Int -> Queue a -> (Queue a, Queue a)
 splitAtQEnd n q
-  = splitAtQEnd' n emptyQueue q
+  = splitAtQEnd' n emptyQ q
   where
     splitAtQEnd' 0 tk dr
       = (tk, dr)
     splitAtQEnd' i tk (Queue _ [] _ [])
-      = (tk, emptyQueue)
+      = (tk, emptyQ)
     splitAtQEnd' i tk dr
       = splitAtQEnd' (i - 1) tk' dr'
       where

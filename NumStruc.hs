@@ -62,8 +62,8 @@ numGen :: [Integer] -> Integer -> (Integer -> QueueS Integer Bool) -> State [Int
 numGen base d f = do
   lst <- get
   let queue = makeQueue (reverse (base ++ lst))
-  let last  = evalState popFrontS queue
-  let start = maybe d succ last
+  let max   = evalState popFrontS queue
+  let start = maybe d succ max
   put $ filterAcc f [start..] queue
   return (base ++ lst)
 

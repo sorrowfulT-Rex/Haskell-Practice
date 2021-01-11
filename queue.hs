@@ -162,6 +162,33 @@ popFront _
   = error "This InfQueue is not infinite!"
 
 
+-- Operators
+
+-- push
+infixr 5 |>>
+(|>>) :: a -> Queue a -> Queue a
+(|>>) 
+  = push
+
+-- pushEnd
+infixl 5 <<|
+(<<|) :: Queue a -> a -> Queue a
+(<<|) 
+  = flip pushEnd
+
+-- concat
+infixr 5 +++
+(+++) :: Queue a -> Queue a -> Queue a
+(InfQueue ins os) +++ (Queue _ ins' _ os')
+  = InfQueue ins (os' ++ reverse ins' ++ os)
+(Queue _ ins _ os) +++ (InfQueue ins' os')
+  = InfQueue (ins ++ reverse os ++ ins') os'
+(Queue inl ins ol os) +++ (Queue inl' ins' ol' os')
+  = check $ Queue (inl + ol) (ins ++ reverse os) (inl' + ol') (os' ++ reverse ins')
+_ +++ _
+  = error "Cannot concat two infinite queues!"
+
+
 -- More functions
 
 -- Split the deque at the nth element (inclusive) from the front

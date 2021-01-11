@@ -176,6 +176,35 @@ infixl 5 <<|
 (<<|) 
   = flip pushEnd
 
+-- index from left
+(!!<) :: Queue a -> Int -> a
+(!!<) q n
+  | n < 0     = error "Index out of bound!"
+  | otherwise = index q n n
+  where
+    index q 0 n
+      | Just e <- popped = e
+      | otherwise        = error "Index out of bound!"
+      where
+        popped = evalState popFrontS q
+    index q i n
+      = index (execState popFrontS q) (i - 1) n
+
+-- index from right
+(!!>) :: Queue a -> Int -> a
+(!!>) q n
+  | n < 0     = error "Index out of bound!"
+  | otherwise = index q n n
+  where
+    index q 0 n
+      | Just e <- popped = e
+      | otherwise        = error "Index out of bound!"
+      where
+        popped = evalState popS q
+    index q i n
+      = index (execState popS q) (i - 1) n
+
+
 -- concat
 infixr 5 +++
 (+++) :: Queue a -> Queue a -> Queue a

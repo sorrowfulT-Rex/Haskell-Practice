@@ -22,9 +22,9 @@ instance Show a => Show (Queue a) where
     = '[' : show a ++ "]"
   -- Showing the first and the last elements
   show q
-    = '[' : show (fromJust $ evalState peekFront q) ++ 
+    = '[' : show (q !!< 0) ++ 
       "..." ++ 
-      show (fromJust $ evalState peek q) ++ 
+      show (q !!> 0) ++ 
       "]"
 
 
@@ -174,6 +174,24 @@ popFront (InfQueue (i : ins) os)
 popFront _
   = error "This InfQueue is not infinite!"
 
+-- Get element at index from left
+indexL :: Queue a -> Int -> Maybe a
+indexL q n
+  | n < 0     = Nothing
+  | n == 0    = e
+  | otherwise = indexL q' (n - 1)
+  where
+    (e, q') = popFront q
+
+-- Get element at index from right
+indexR :: Queue a -> Int -> Maybe a
+indexR q n
+  | n < 0     = Nothing
+  | n == 0    = e
+  | otherwise = indexR q' (n - 1)
+  where
+    (e, q') = pop q
+
 -- Contatenate two deques
 concatQ :: Queue a -> Queue a -> Queue a
 concatQ (InfQueue ins os) (Queue _ ins' _ os')
@@ -182,54 +200,38 @@ concatQ (Queue _ ins _ os) (InfQueue ins' os')
   = InfQueue (ins ++ reverse os ++ ins') os'
 concatQ (Queue inl ins ol os) (Queue inl' ins' ol' os')
   = check $ Queue (inl + ol) (ins ++ reverse os) (inl' + ol') (os' ++ reverse ins')
-concatQ _ _
-  = error "Cannot concat two infinite queues!"
+-- When concatenating two infinite deques, the outbox of the left deque and the inbox of the right deque
+-- are discarded since they are unaccessible.
+concatQ (InfQueue ins _) (InfQueue _ os)
+  = InfQueue ins os
 
 
 -- Operators
 
 -- push
-infixr 5 |>>
-(|>>) :: a -> Queue a -> Queue a
-(|>>) 
+infixr 4 >:>
+(>:>) :: a -> Queue a -> Queue a
+(>:>) 
   = push
 
 -- pushEnd
-infixl 5 <<|
-(<<|) :: Queue a -> a -> Queue a
-(<<|) 
+infixl 5 <:<
+(<:<) :: Queue a -> a -> Queue a
+(<:<) 
   = flip pushEnd
 
--- index from left
+-- indexL
 (!!<) :: Queue a -> Int -> a
-(!!<) q n
-  | n < 0     = error "Index out of bound!"
-  | otherwise = index q n n
-  where
-    index q 0 n
-      | Just e <- popped = e
-      | otherwise        = error "Index out of bound!"
-      where
-        popped = evalState popFrontS q
-    index q i n
-      = index (execState popFrontS q) (i - 1) n
+(!!<)
+  = (maybe (error "Index out of bound!") id .) . indexL
 
--- index from right
+-- indexR
 (!!>) :: Queue a -> Int -> a
-(!!>) q n
-  | n < 0     = error "Index out of bound!"
-  | otherwise = index q n n
-  where
-    index q 0 n
-      | Just e <- popped = e
-      | otherwise        = error "Index out of bound!"
-      where
-        popped = evalState popS q
-    index q i n
-      = index (execState popS q) (i - 1) n
+(!!>) 
+  = (maybe (error "Index out of bound!") id .) . indexR
 
 -- concat (left associative)
-infixr 5 +<+
+infixl 4 +<+
 (+<+) :: Queue a -> Queue a -> Queue a
 (+<+)
   = concatQ
@@ -318,23 +320,3 @@ popS
 popFrontS :: QueueS a (Maybe a)
 popFrontS
   = state popFront 
-
--- Look at the last element of the deque without changing the deque
-peek :: QueueS a (Maybe a)
-peek = do
-  e <- popS
-  if isNothing e
-    then return e
-    else do
-      pushEndS (fromJust e)
-      return e
-
--- Look at the first element of the deque without changing the deque
-peekFront :: QueueS a (Maybe a)
-peekFront = do
-  e <- popFrontS
-  if isNothing e
-    then return e
-    else do
-      pushS (fromJust e)
-      return e

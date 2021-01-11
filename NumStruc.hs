@@ -32,7 +32,7 @@ primeList = do
       let start = maybe 2 succ last
       -- Main function to generate new primes is isPrimeAcc, using my deque
       put $ filterAcc isPrimeAcc [start..] queue
-    primeListW (a : as) b 
+    primeListW (a : as) b
       | b         = do
         appendFile "primes.txt" (' ' : show a)
         rst <- unsafeInterleaveIO $ primeListW as True
@@ -68,7 +68,7 @@ ulamList = do
         return $ a : rst
       | otherwise = unsafeInterleaveIO $ ulamListW (a : as) True
 
-filterAcc :: (a -> QueueS a Bool) -> [a] -> Queue a -> [a]
+filterAcc :: (a -> State (m a) Bool) -> [a] -> m a -> [a]
 filterAcc _ [] _
   = []
 filterAcc f (a : as) q 

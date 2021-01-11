@@ -2,14 +2,20 @@ import           Control.Applicative
 import           Control.Monad.Trans.State
 import           Data.Maybe
 import           Prelude hiding (fst, snd)
-import           System.IO
+import           System.IO (IOMode(..))
 import           System.IO.Unsafe
+
+-- Dependency: $ cabal install --lib strict-io
+import           System.IO.Strict hiding (read, appendFile)
 
 import           Queue
 
 -- Read the primes already calculated
 primeListR :: IO [Integer]
-primeListR = do
+primeListR = run primeListR'
+
+primeListR' :: SIO [Integer]
+primeListR' = do
   h   <- openFile "primes.txt" ReadWriteMode
   raw <- hGetContents h
   return $ map read (words raw)
@@ -18,7 +24,7 @@ primeListR = do
 primeList :: IO [Integer]
 primeList = do
   -- Get current primes
-  list <- primeListR
+  list <- run primeListR'
   -- Infinite list of new primes since current primes
   let list' = execState primeListS list
   -- Write these new primes into the file
@@ -42,7 +48,10 @@ primeList = do
 -- This has similar structure as above, but I'm writing it again to strengthen my memory
 -- Read the ulam numbers already calculated
 ulamListR :: IO [Integer]
-ulamListR = do
+ulamListR = run ulamListR'
+
+ulamListR' :: SIO [Integer]
+ulamListR' = do
   h   <- openFile "ulams.txt" ReadWriteMode
   raw <- hGetContents h
   return $ map read (words raw)
@@ -50,7 +59,7 @@ ulamListR = do
 -- Generate an infiite list of ulam numbers
 ulamList :: IO [Integer]
 ulamList = do
-  list <- ulamListR
+  list <- run ulamListR'
   let list' = execState ulamListS list
   rst <- ulamListW list' False
   return $ 1 : 2 : list ++ rst

@@ -68,7 +68,7 @@ ulamList = do
         return $ a : rst
       | otherwise = unsafeInterleaveIO $ ulamListW (a : as) True
 
-filterAcc :: (a -> State (m a) Bool) -> [a] -> m a -> [a]
+filterAcc :: (a -> QueueS a Bool) -> [a] -> Queue a -> [a]
 filterAcc _ [] _
   = []
 filterAcc f (a : as) q 

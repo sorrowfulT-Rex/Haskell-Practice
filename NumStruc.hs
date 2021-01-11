@@ -1,82 +1,34 @@
-import           Control.Applicative
+module NumStruc where
+
 import           Control.Monad.Trans.State
 import           Data.Maybe
 import           Prelude hiding (fst, snd)
-import           System.IO (IOMode(..))
+import           System.IO (IOMode(..), openFile)
 import           System.IO.Unsafe
 
 -- Dependency: $ cabal install --lib strict-io
-import           System.IO.Strict hiding (read, appendFile)
+import           System.IO.Strict hiding (read, appendFile, openFile, print)
 
 import           Queue
 
--- Read the primes already calculated
-primeListR :: IO [Integer]
-primeListR = run primeListR'
+-- We say a set S of natural integers is an accumulative structure if for any n <- [0..],
+-- we can determine if n is an element of S when we all the elements of S smaller than n.
+-- We call this determining rule the accumulation filter.
 
-primeListR' :: SIO [Integer]
-primeListR' = do
-  h   <- openFile "primes.txt" ReadWriteMode
-  raw <- hGetContents h
-  return $ map read (words raw)
+-- For example, the set of all prime numbers is accumulative, since we can tell if a number is prime
+-- when we have all the primes below that number.
 
--- Generate an inifite list of primes
-primeList :: IO [Integer]
-primeList = do
-  -- Get current primes
-  list <- run primeListR'
-  -- Infinite list of new primes since current primes
-  let list' = execState primeListS list
-  -- Write these new primes into the file
-  rst <- primeListW list' False
-  return $ list ++ rst
-  where
-    primeListS = do
-      curList <- get
-      let queue = makeQueue (reverse curList)
-      let last  = evalState popFrontS queue
-      let start = maybe 2 succ last
-      -- Main function to generate new primes is isPrimeAcc, using my deque
-      put $ filterAcc isPrimeAcc [start..] queue
-    primeListW (a : as) b
-      | b         = do
-        appendFile "primes.txt" (' ' : show a)
-        rst <- unsafeInterleaveIO $ primeListW as True
-        return $ a : rst
-      | otherwise = unsafeInterleaveIO $ primeListW (a : as) True
+-- Ulam numbers are also accumulative. The list of all ulam numbers is defined to start with
+-- 1 and 2, and any other ulam number can be represented as the sum of two distinct (smaller) ulam numbers.
 
--- This has similar structure as above, but I'm writing it again to strengthen my memory
--- Read the ulam numbers already calculated
-ulamListR :: IO [Integer]
-ulamListR = run ulamListR'
+-- In the case of ulam numbers, we start from [1, 2], which is not determined by the rule,
+-- we call it the base case.
+-- For primes the base case is simply []
 
-ulamListR' :: SIO [Integer]
-ulamListR' = do
-  h   <- openFile "ulams.txt" ReadWriteMode
-  raw <- hGetContents h
-  return $ map read (words raw)
+-- This program calculates the infinite list of any accumulative structure, writes the list into a file,
+-- and can read previously calculated results to avoid repetitive computation.
 
--- Generate an infiite list of ulam numbers
-ulamList :: IO [Integer]
-ulamList = do
-  list <- run ulamListR'
-  let list' = execState ulamListS list
-  rst <- ulamListW list' False
-  return $ 1 : 2 : list ++ rst
-  where
-    ulamListS = do
-      curList <- get
-      let queue = makeQueue (reverse (1 : 2 : curList))
-      let last  = evalState popFrontS queue
-      let start = maybe 2 succ last
-      put $ filterAcc isUlamAcc [start..] queue
-    ulamListW (a : as) b 
-      | b         = do
-        appendFile "ulams.txt" (' ' : show a)
-        rst <- unsafeInterleaveIO $ ulamListW as True
-        return $ a : rst
-      | otherwise = unsafeInterleaveIO $ ulamListW (a : as) True
-
+-- Produces an infinite accumulative structure from an accumulation filter and a base
 filterAcc :: (a -> QueueS a Bool) -> [a] -> Queue a -> [a]
 filterAcc _ [] _
   = []
@@ -87,41 +39,45 @@ filterAcc f (a : as) q
     passed = evalState (f a) q
     q'     = execState (pushS a) q
 
-isPrimeAcc :: Integer -> QueueS Integer Bool
-isPrimeAcc n = do
-  this <- popS
-  if isNothing this
-    then return True
-    else do
-      test $ fromJust this
-      where
-        test p 
-          | p ^ 2 > n     = return True
-          | n `mod`p == 0 = return False
-          | otherwise     = isPrimeAcc n
+-- Read previous calculations
+-- The second argument is the (fixed) list of base case, for example for ulam numbers it is [1, 2]
+numRead :: FilePath -> [Integer] -> IO [Integer]
+numRead path base = do
+  rd <- numRead' path
+  return $ base ++ rd
 
-isUlamAcc :: Integer -> QueueS Integer Bool
-isUlamAcc n = do
-  fst <- popFrontS
-  lst <- popS
-  isUlamAcc' 0 fst lst
+numRead' :: FilePath -> IO [Integer]
+numRead' path = do
+  h   <- openFile path ReadWriteMode
+  raw <- run $ hGetContents h
+  return $ map read (words raw)
+
+-- Generate an infinite list of accumulative structure starting from (n + 1), given all the elements <= n
+-- The first argument is the (fixed) list of base case.
+-- the second argument is the smallest (first) number in the structure after the base case,
+-- (e.g. for prime it is 2 and for ulam it is 3),
+-- and the third argument is the accumulation filter
+-- Using self-defined deque structure
+numGen :: [Integer] -> Integer -> (Integer -> QueueS Integer Bool) -> State [Integer] [Integer]
+numGen base d f = do
+  lst <- get
+  let queue = makeQueue (reverse (base ++ lst))
+  let last  = evalState popFrontS queue
+  let start = maybe d succ last
+  put $ filterAcc f [start..] queue
+  return (base ++ lst)
+
+-- Read from files of previous computation results, do new calculations, and simultenously store new results
+numListIO :: FilePath -> [Integer] -> Integer -> (Integer -> QueueS Integer Bool) -> IO [Integer]
+numListIO path base d f = do
+  lst <- numRead' path
+  let lst' = execState (numGen base d f) lst
+  rst <- numListW lst' False
+  return $ base ++ lst ++ rst
   where
-    isUlamAcc' 2 _ _
-      = return False
-    isUlamAcc' c fst lst = do
-      let sum = liftA2 (+) fst lst
-      if isNothing sum
-        then return $ c == 1
-        else test (fromJust sum)
-        where
-          test sum
-            | sum > n   = do
-              fst' <- popFrontS
-              isUlamAcc' c fst' lst
-            | sum < n   = do
-              lst' <- popS
-              isUlamAcc' c fst lst'
-            | otherwise = do
-              fst' <- popFrontS
-              lst' <- popS
-              isUlamAcc' (c + 1) fst' lst'
+    numListW nz@(n : ns) flag 
+      | flag      = do
+        appendFile path (' ' : show n)
+        rst <- unsafeInterleaveIO $ numListW ns True
+        return $ n : rst
+      | otherwise = unsafeInterleaveIO $ numListW nz True

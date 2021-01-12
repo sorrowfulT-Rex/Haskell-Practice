@@ -28,12 +28,6 @@ instance Show a => Show (Queue a) where
       "]"
 
 
--- Foldable Instances
-
--- instance Foldable Queue where
---   TODO
-
-
 -- Functor & Applicative Instances
 
 instance Functor Queue where
@@ -62,10 +56,10 @@ instance Applicative Queue where
 -- Display functions
 
 -- Convert the deque to list from left to right
-toListF :: Queue a -> [a]
-toListF (Queue _ ins _ os)
+toListL :: Queue a -> [a]
+toListL (Queue _ ins _ os)
   = ins ++ reverse os
-toListF (InfQueue ins _)
+toListL (InfQueue ins _)
   = ins
 
 -- Convert the deque to list from right to left
@@ -253,48 +247,48 @@ reverseQ (InfQueue ins os)
   = InfQueue os ins
 
 -- Split the deque at the nth element (inclusive) from the front
-splitAtQ :: Int -> Queue a -> (Queue a, Queue a)
-splitAtQ n q
-  = splitAtQ' n emptyQ q
+splitAtQL :: Int -> Queue a -> (Queue a, Queue a)
+splitAtQL n q
+  = splitAtQL' n emptyQ q
   where
-    splitAtQ' 0 tk dr
+    splitAtQL' 0 tk dr
       = (tk, dr)
-    splitAtQ' i tk (Queue _ [] _ [])
+    splitAtQL' i tk (Queue _ [] _ [])
       = (tk, emptyQ)
-    splitAtQ' i tk dr
-      = splitAtQ' (i - 1) tk' dr'
+    splitAtQL' i tk dr
+      = splitAtQL' (i - 1) tk' dr'
       where
         (Just e, dr') = runState popFrontS dr
         tk'           = execState (pushEndS e) tk
 
 -- Split the deque at the nth element (inclusive) from the end
-splitAtQEnd :: Int -> Queue a -> (Queue a, Queue a)
-splitAtQEnd n q
-  = splitAtQEnd' n emptyQ q
+splitAtQR :: Int -> Queue a -> (Queue a, Queue a)
+splitAtQR n q
+  = splitAtQR' n emptyQ q
   where
-    splitAtQEnd' 0 tk dr
+    splitAtQR' 0 tk dr
       = (tk, dr)
-    splitAtQEnd' i tk (Queue _ [] _ [])
+    splitAtQR' i tk (Queue _ [] _ [])
       = (tk, emptyQ)
-    splitAtQEnd' i tk dr
-      = splitAtQEnd' (i - 1) tk' dr'
+    splitAtQR' i tk dr
+      = splitAtQR' (i - 1) tk' dr'
       where
         (Just e, dr') = runState popS dr
         tk'           = execState (pushS e) tk
 
 -- Take/drop the first nth element (inclusive)
-takeQ, dropQ :: Int -> Queue a -> Queue a
-takeQ
-  = (fst .) . splitAtQ
-dropQ
-  = (snd .) . splitAtQ
+takeQL, dropQL :: Int -> Queue a -> Queue a
+takeQL
+  = (fst .) . splitAtQL
+dropQL
+  = (snd .) . splitAtQL
 
 -- Take/drop the last nth element (inclusive)
-takeQEnd, dropQEnd :: Int -> Queue a -> Queue a
-takeQEnd
-  = (fst .) . splitAtQEnd
-dropQEnd
-  = (snd .) . splitAtQEnd
+takeQR, dropQR :: Int -> Queue a -> Queue a
+takeQR
+  = (fst .) . splitAtQR
+dropQR
+  = (snd .) . splitAtQR
 
 
 -- State Functions

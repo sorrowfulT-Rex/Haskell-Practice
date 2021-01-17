@@ -45,6 +45,7 @@ figure
     (Node 8208 (fromList [Leaf (singleton 73),
     (Leaf (fromList [729,2521]))])),
     Leaf (singleton 206)])
+t = buildTrie [1 :: Int ..100000]
 
 
 -- Initialisation
@@ -67,11 +68,11 @@ isEmpty _
 
 insert :: Hashable a => a -> Trie a -> Trie a
 insert
-  = execState . insertT
+  = execState . insertS
 
 remove :: Hashable a => a -> Trie a -> Trie a
 remove
-  = execState . removeT
+  = execState . removeS
 
 member :: Hashable a => a -> Trie a -> Bool
 member e trie
@@ -87,6 +88,7 @@ member e trie
         hSeg     = getIndex h depth 4
         hasEntry = testBit bv hSeg
 
+pop :: Hashable a => Trie a -> (Maybe a, Trie a)
 pop (Leaf Empty)
   = (Nothing, emptyTrie)
 pop trie
@@ -98,14 +100,29 @@ pop trie
     findElem (Node _ (t :<| _))
       = findElem t
 
+del :: (Hashable a, Foldable t) => Trie a -> t a -> Trie a
+del
+  = (. delS) . flip execState
+
+sieve :: Hashable a => (a -> Bool) -> Trie a -> Trie a
+sieve f trie
+  = execState (forM_ (toList trie) sieve') trie
+  where
+    sieve' s
+     = if f s
+      then return ()
+      else do 
+        removeS s
+        return ()
+
 
 -- State Methods
 
 type TrieT a = State (Trie a)
 type HashMapT a = TrieT a
 
-insertT :: Hashable a => a -> TrieT a Bool
-insertT a
+insertS :: Hashable a => a -> TrieT a Bool
+insertS a
   = state $ flip insert' 0
   where
     insert' (Leaf Empty) _
@@ -134,15 +151,15 @@ insertT a
         bv'        = bv + bit hSeg
         subT''     = insertAt entry (Leaf $ singleton a) subT
 
-removeT :: Hashable a => a -> TrieT a Bool
-removeT a
+removeS :: Hashable a => a -> TrieT a Bool
+removeS a
   = state $ flip remove' 0
   where
     remove' (Leaf Empty) _
       = (False, emptyTrie)
     remove' trie@(Leaf ls) _
-      | member a trie = (True, Leaf $ delete a ls)
-      | otherwise     = (False, trie)
+      | a `elem` ls = (True, Leaf $ delete a ls)
+      | otherwise   = (False, trie)
     remove' trie@(Node bv subT) d
       | hasEntry  = (v, trie')
       | otherwise = (False, trie)
@@ -160,9 +177,23 @@ removeT a
           | bv' > 0             = Node bv' subT''
           | otherwise           = emptyTrie
 
-popT :: Hashable a => TrieT a (Maybe a)
-popT
+popS :: Hashable a => TrieT a (Maybe a)
+popS
   = state pop
+
+delS :: (Hashable a, Foldable t) => t a -> TrieT a [a]
+delS
+  = del' . toList
+  where
+    del' []
+      = return []
+    del' (x : xs) = do
+      this <- removeS x
+      rest <- delS xs
+      if this
+        then return rest
+        else return $ x : rest
+
 
 
 -- Utilities

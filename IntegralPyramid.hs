@@ -26,7 +26,7 @@ genRow [x]
 genRow (x : x' : xs)
   = (x + x') : genRow (x' : xs)
 
--- Given the top number and the number of rows, generate the bottom number
+-- Given the top number and the number of rows, generate the bottom numbers
 -- set all but the first to 1; the first maybe < 1; will test validity later
 genBtmRow :: Int -> Int -> [Int]
 genBtmRow x n

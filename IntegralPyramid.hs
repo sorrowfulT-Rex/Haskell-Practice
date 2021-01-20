@@ -33,7 +33,7 @@ genBtmRow x n
   = (x - 2 ^ (n - 1) + 1) : replicate (n - 1) 1
 
 -- Given the top number and the number of rows, generate the full pyramid
--- Pre: x, n > 0
+-- Pre: x, n > 0; these are tested during parsing, not in this function
 genPyramid :: Int -> Int -> Maybe [[Int]]
 genPyramid x n
   | head btm > 0 = Just $ gen [btm]

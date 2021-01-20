@@ -55,7 +55,7 @@ parseIntTuple = do
     else return $ fromJust tuple
   where
     -- Seems like here is the limit of the Haskell Compiler
-    -- If I don't explicitly include the signiture for filt,
+    -- If I don't explicitly include the signature for filt,
     -- It cannot deduce it and will give me an error
     -- because it think filt :: MonadPlus m => m Int -> m Int
     filt :: (MonadPlus m, Ord a, Num a) => m a -> m a

@@ -20,7 +20,7 @@ import           Text.Read
 
 -- Given a row of numbers (list), generate the row above
 -- Pre: the list is non-empty
-genRow :: [Int] -> [Int]
+genRow :: [Integer] -> [Integer]
 genRow [x]
   = []
 genRow (x : x' : xs)
@@ -28,13 +28,13 @@ genRow (x : x' : xs)
 
 -- Given the top number and the number of rows, generate the bottom numbers
 -- set all but the first to 1; the first maybe < 1; will test validity later
-genBtmRow :: Int -> Int -> [Int]
+genBtmRow :: Integer -> Int -> [Integer]
 genBtmRow x n
   = (x - 2 ^ (n - 1) + 1) : replicate (n - 1) 1
 
 -- Given the top number and the number of rows, generate the full pyramid
 -- Pre: x, n > 0; these are tested during parsing, not in this function
-genPyramid :: Int -> Int -> Maybe [[Int]]
+genPyramid :: Integer -> Int -> Maybe [[Integer]]
 genPyramid x n
   | head btm > 0 = Just $ gen [btm]
   | otherwise    = Nothing
@@ -46,7 +46,7 @@ genPyramid x n
     gen pyramid@(p : ps)
       = gen (genRow p : pyramid)
 
-parseIntTuple :: IO (Int, Int)
+parseIntTuple :: IO (Int, Integer)
 parseIntTuple = do
   raw <- getLine
   let tuple = parse (span (/= ' ') raw)
@@ -54,7 +54,12 @@ parseIntTuple = do
     then parseIntTuple
     else return $ fromJust tuple
   where
-    filt = mfilter (> 0)
+    -- Seems like here is the limit of the Haskell Compiler
+    -- If I don't explicitly include the signiture for filt,
+    -- It cannot deduce it and will give me an error
+    -- because it think filt :: MonadPlus m => m Int -> m Int
+    filt :: (MonadPlus m, Ord a, Num a) => m a -> m a
+    filt = mfilter ((> 0))
     parse (s1, s2)
       = liftM2 (,) (filt (readMaybe s1)) (filt (readMaybe s2))
 

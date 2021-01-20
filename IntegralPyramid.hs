@@ -62,7 +62,7 @@ parseIntTuple = do
 -- If input is invalid, will wait for another input
 main :: IO ()
 main = do
-  print "Gimme n and x, separate by a space!"
+  print "Gimme n and x, separated by a space!"
   (n, x) <- parseIntTuple
   let result = genPyramid x n
   if isNothing result

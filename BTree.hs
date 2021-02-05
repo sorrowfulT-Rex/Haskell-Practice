@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 module BTree where
 
 import           Data.List
@@ -78,3 +80,30 @@ insertBST e (BSNode ld l a rd r)
   where
     lInsert = insertBST e l
     rInsert = insertBST e r
+
+-- Add element and replace duplicates
+updateBST :: Ord a => a -> BSTree a -> BSTree a
+updateBST e BSEmpty
+  = BSLeaf e
+updateBST e az@(BSLeaf a)
+  | e < a     = BSNode 0 BSEmpty e 1 az
+  | e > a     = BSNode 1 az e 0 BSEmpty
+  | otherwise = BSLeaf e
+updateBST e (BSNode ld l a rd r)
+  | e < a     = balance $ BSNode (depth lUpdate + 1) lUpdate a rd r
+  | e > a     = balance $ BSNode ld l a (depth rUpdate + 1) rUpdate
+  | otherwise = BSNode ld l a rd r
+  where
+    lUpdate = updateBST e l
+    rUpdate = updateBST e r
+
+-- Check if an element is in the BST
+elemBST :: Ord a => a -> BSTree a -> Bool
+elemBST _ BSEmpty
+  = False
+elemBST e (BSLeaf a)
+  = e == a
+elemBST e (BSNode _ l x _ r)
+  | e < x     = elemBST e l
+  | e > x     = elemBST e r
+  | otherwise = True

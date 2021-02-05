@@ -1,4 +1,4 @@
-module HashSet where
+module Trie where
 
 import           Control.Monad
 import           Control.Monad.Trans.State
@@ -28,7 +28,6 @@ import           Prelude hiding (lookup)
 type BitVector = Int
 type Hash = Int
 type HashFun = Int -> Hash
-type HashSet = Trie
 
 data Trie a = Leaf (Seq a) | Node BitVector (Seq (Trie a))
   deriving (Eq, Show)
@@ -119,7 +118,6 @@ sieve f trie
 -- State Methods
 
 type TrieT a = State (Trie a)
-type HashMapT a = TrieT a
 
 insertS :: Hashable a => a -> TrieT a Bool
 insertS a

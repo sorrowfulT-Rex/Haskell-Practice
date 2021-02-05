@@ -16,3 +16,12 @@ Implements Binary Search Tree in Haskell
 
 # Trie.hs
 Implements Set based on Trie  
+
+# SkewCollatz.hs
+An interesting conjecture regarding a modified Collatz Sequence  
+
+# IntegralPyramid.hs 
+A competition puzzle. Details inside  
+
+# Division.hs  
+Simulates an ALU-leveldivision algorithm as part of a Computer Architecture course tutorial  

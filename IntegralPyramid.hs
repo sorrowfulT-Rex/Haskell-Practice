@@ -59,7 +59,7 @@ parseIntTuple = do
     -- It cannot deduce it and will give me an error
     -- because it think filt :: MonadPlus m => m Int -> m Int
     filt :: (MonadPlus m, Ord a, Num a) => m a -> m a
-    filt = mfilter ((> 0))
+    filt = mfilter (> 0)
     parse (s1, s2)
       = liftM2 (,) (filt (readMaybe s1)) (filt (readMaybe s2))
 

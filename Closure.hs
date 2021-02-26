@@ -39,7 +39,7 @@ instance Show a => Show (FD a) where
     where
       list = toList fd
       show' str (k, v)
-        =  str ++ "; " ++ show k ++ ": " ++ show v
+        =  str ++ "; " ++ show (toList k) ++ ": " ++ show (toList v)
 
 lookupAll :: Eq a => a -> [(a, b)] -> [b]
 lookupAll key

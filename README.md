@@ -25,3 +25,6 @@ A competition puzzle. Details inside
 
 # Division.hs  
 Simulates an ALU-leveldivision algorithm as part of a Computer Architecture course tutorial  
+
+# Closure.hs
+Calculates closure and minimal key (relational database)  

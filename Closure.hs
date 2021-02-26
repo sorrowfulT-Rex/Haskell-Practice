@@ -20,18 +20,18 @@ stepByStepSolution :: (Ord a, Show a) => FD a -> IO ()
 stepByStepSolution fd = do
   putStrLn "Original FDs:"
   print fd
-  let fd' = step1 fd
+  let fd1 = step1 fd
   putStrLn "Step 1: "
-  print fd'
-  let fd' = step2 fd
+  print fd1
+  let fd2 = step2 fd1
   putStrLn "Step 2: "
-  print fd'
-  let fd' = step3 fd
+  print fd2
+  let fd3 = step3 fd2
   putStrLn "Step 3: "
-  print fd'
-  let fd' = step4 fd
+  print fd3
+  let fd4 = step4 fd3
   putStrLn "Combine RHS: "
-  print fd'
+  print fd4
 
 instance Show a => Show (FD a) where
   show (FD fd)

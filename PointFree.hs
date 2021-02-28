@@ -35,9 +35,9 @@ apply ";" b b'
 apply o Dummy Dummy
   = Arg o
 apply o Dummy b
-  = Apply (Arg o) b
+  = Apply (Apply (Arg "flip") (Arg o)) b
 apply o b Dummy
-  = apply o Dummy b
+  = Apply (Arg o) b
 apply o b b'
   = Apply (Apply (Arg o) b) b'
 

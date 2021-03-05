@@ -1,3 +1,4 @@
+import           Data.Array as A
 
 -- Lazy; can cause heap exhaustion
 mySum :: Num a => [a] -> a
@@ -99,3 +100,14 @@ fibTrulyNoMem a x
 -- Now even with 'ghc -O2 LayzeEvaluation.hs', the compiler won't be able to
 -- turn the function above into CAF!
 -- Since when do we need to fight the compiler as well...
+
+fibArr :: Int -> Integer
+fibArr 
+  = (fmap fib' (array (0, 114514) $ zip [0..] [0..114514] :: Array Int Int) A.!)
+  where
+    fib' 0 = 1
+    fib' 1 = 1
+    fib' n = fibArr (n - 2) + fibArr (n - 1)
+
+-- This function has super fast access to memoisation, but it has an upper bound
+-- for the input.

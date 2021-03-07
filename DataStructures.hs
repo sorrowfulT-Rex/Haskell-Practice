@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE UnboxedTuples #-}
 
 -- Learning Process
 -- Based on Haskell High Performance Programming by Samuli Thomasson
@@ -81,11 +80,11 @@ iter n f x
 
 -- 2.610 s; 568 MB memory.
 
-main 
-  = print $ iter 10000000 f (PairS 0 0)
-  where
-    f (PairS x y)
-      = PairS (x + 2) (y + 1)
+-- main 
+--   = print $ iter 10000000 f (PairS 0 0)
+--   where
+--     f (PairS x y)
+--       = PairS (x + 2) (y + 1)
 
 -- 0.575 s; 0 MB memory.
 
@@ -119,3 +118,24 @@ main
 -- In the last example, unboxing the Ints does not have an impact to efficiency.
 -- However, unboxing would make a difference in situations such as mutable array
 -- manipulation.
+
+data Tuple = Tuple {-# UNPACK #-} !Int {-# UNPACK #-} !Int 
+  deriving Show
+data Tuple2 = Tuple2 {-# UNPACK #-} !(Int, Int)
+  deriving Show
+
+-- main
+--   = print $ iter 10000000 f (Tuple 0 0)
+--   where
+--     f (Tuple x y)
+--       = (Tuple (x + 1) (y + 2))
+
+-- main
+--   = print $ iter 10000000 f (Tuple2 (0, 0))
+--   where
+--     f (Tuple2 (x, y))
+--       = (Tuple2 (x + 1, y + 2))
+
+-- The first main is much faster than the second one, again because Tuple is
+-- strict on each Ints while Tuple only forces evaluation on the tuple, where
+-- the actual Ints inside the tuple are still lazy as sloth.

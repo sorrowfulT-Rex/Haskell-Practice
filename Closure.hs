@@ -11,6 +11,8 @@ import Data.Coerce (coerce)
 -- Functional Dependencies
 newtype FD a = FD (Set (Set a, Set a))
 
+-- No space between anything; doesn't trim during pasring.
+-- E.g. parseFD "AB->DEH,BEF->A" is OK but parseFD "AB -> DEH,BEF -> A" is not.
 parseFD :: String -> FD Char
 parseFD str = case str of
    ('{' : str') -> toFD $ parse $ init str'

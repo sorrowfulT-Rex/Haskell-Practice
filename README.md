@@ -22,3 +22,9 @@ Simulates an ALU-leveldivision algorithm as part of a Computer Architecture cour
 
 # Closure.hs
 Calculates closure and minimal key (relational database)  
+
+# Performance
+Practices on Haskell Performance  
+
+# Misc
+Random Pointless Practices  

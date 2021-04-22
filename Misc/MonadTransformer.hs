@@ -1,7 +1,8 @@
 import Data.Char
 import Control.Monad
 import Control.Monad.Trans.Class
-import Data.Maybe
+import Data.Maybe 
+import Text.Read hiding (lift)
 -- import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
 
@@ -170,3 +171,26 @@ trivialAdd = runIdentityT $ do
   x <- lift readLn
   y <- lift readLn
   lift $ print $ x + y
+
+-- Mixed Transformer
+io1, io2 :: MaybeT (ExceptT String IO) Int
+io1 = MaybeT $ ExceptT $ return $ Right $ Just 1
+io2 = MaybeT $ ExceptT $ return $ Right $ Just 2
+
+-- Take two int inputs. If invalid, Left; if < 0, Right Nothing.
+fooAdd :: IO (Either String (Maybe ()))
+fooAdd = runExceptT $ runMaybeT $ do
+  x <- lift' $ parser <$> getLine
+  y <- lift' $ parser <$> getLine
+  lift . lift $ print $ x + y
+
+parser :: String -> Either String (Maybe Int)
+parser str = runMaybeT $ do
+  x <- lift $ readEither str :: MaybeT (Either String) Int
+  if x < 0
+    then MaybeT $ Right Nothing
+    else lift $ Right x 
+
+lift' :: Monad m => m (Either String (Maybe Int)) -> MaybeT (ExceptT String m) Int
+lift' x
+  = MaybeT $ ExceptT x

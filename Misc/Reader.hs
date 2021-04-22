@@ -1,4 +1,6 @@
 import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
+import Control.Monad
 
 tom :: Reader String String
 tom = do
@@ -13,8 +15,14 @@ jerry = do
 tomAndJerry :: Reader String String
 tomAndJerry = do
     t <- tom
-    j <- jerry
+    j <- local (++ " You know,") jerry
     return (t ++ "\n" ++ j)
 
 runJerryRun :: String
 runJerryRun = runReader tomAndJerry "Who is this?"
+
+f :: Int -> Reader (Integer, Integer) Integer
+f n = foldl (\r _ -> local (\(x, y) -> (y, x + y)) r) (fst <$> ask) [1..n]
+
+g :: Int -> State (Integer, Integer) Integer
+g n = forM_ [1..n] (const $ get >>= \(x, y) -> put (y, x + y)) >> fst <$> get

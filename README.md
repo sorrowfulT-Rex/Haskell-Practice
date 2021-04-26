@@ -28,3 +28,7 @@ Practices on Haskell Performance
 
 # Misc
 Random Pointless Practices  
+
+# All Among Monads
+Practicing along the book All Among Monads   
+

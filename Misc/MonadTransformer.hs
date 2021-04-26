@@ -2,9 +2,10 @@ import Data.Char
 import Control.Monad
 import Control.Monad.Trans.Class
 import Data.Maybe 
-import Text.Read hiding (lift)
+import Text.Read hiding (lift, get)
 -- import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.State
 
 -- Without Monad Transformer
 
@@ -194,3 +195,9 @@ parser str = runMaybeT $ do
 lift' :: Monad m => m (Either String (Maybe Int)) -> MaybeT (ExceptT String m) Int
 lift' x
   = MaybeT $ ExceptT x
+
+bruh :: StateT Int Maybe ()
+bruh = do
+  x <- get
+  guard (x `mod` 3 /= 0)
+  put x

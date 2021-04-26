@@ -51,8 +51,8 @@ parentMP :: MonadPlus m => Sheep -> m Sheep
 parentMP s = foldl mplus mzero $ maybeToMonadPlus <$> [father s, mother s]
 
 grandParentMP :: MonadPlus m => Sheep -> m Sheep
-grandParentMP s = foldl mplus mzero $ maybeToMonadPlus <$> [ father s >>= father
-                                                           , father s >>= mother
-                                                           , mother s >>= father
-                                                           , mother s >>= mother
-                                                           ]
+grandParentMP s = msum $ maybeToMonadPlus <$> [ father s >>= father
+                                              , father s >>= mother
+                                              , mother s >>= father
+                                              , mother s >>= mother
+                                              ]

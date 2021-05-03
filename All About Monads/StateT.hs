@@ -13,10 +13,7 @@ import Data.Text as T
 main :: IO ()
 main = do
   numQuery <- readLn :: IO Int
-  evalStateT (forM_ [1..numQuery] $ const $ do
-    query <- lift getLine
-    operate query
-    ) [T.empty] 
+  evalStateT (forM_ [1..numQuery] $ const $ lift getLine >>= operate) [T.empty] 
 
 operate :: String -> StateT [Text] IO ()
 operate ('1' : ' ' : args) = do

@@ -1,6 +1,28 @@
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.State
+-- import Control.Monad.Trans.Reader
+import Control.Applicative
 import Control.Monad
+
+-- TODO: Implement your own Read Monad with ask and local
+newtype Reader e a = Reader { runReader :: e -> a }
+
+instance Functor (Reader e) where
+  fmap = liftM
+
+instance Applicative (Reader e) where
+  pure  = return
+  (<*>) = ap
+
+instance Monad (Reader e) where
+  return = Reader . const
+  Reader r >>= f
+    = Reader $ \a -> runReader (f (r a)) a
+
+ask :: Reader e e
+ask = Reader id
+
+local :: (e -> e) -> Reader e a -> Reader e a
+local f (Reader r)
+  = Reader $ r . f
 
 tom :: Reader String String
 tom = do
@@ -23,6 +45,3 @@ runJerryRun = runReader tomAndJerry "Who is this?"
 
 f :: Int -> Reader (Integer, Integer) Integer
 f n = foldl (\r _ -> local (\(x, y) -> (y, x + y)) r) (fst <$> ask) [1..n]
-
-g :: Int -> State (Integer, Integer) Integer
-g n = forM_ [1..n] (const $ get >>= \(x, y) -> put (y, x + y)) >> fst <$> get

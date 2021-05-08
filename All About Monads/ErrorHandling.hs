@@ -7,7 +7,7 @@
 
 -- This is an introduction on basic error-handling in Haskell.
 
-import           Control.Exception (Exception, SomeException, catch, throw,)
+import           Control.Exception (Exception, SomeException, catch, throw)
 import           Control.Monad (liftM2, void)
 import           Control.Monad.Trans.Class (lift)
 import           Control.Monad.Trans.Except

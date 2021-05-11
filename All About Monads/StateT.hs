@@ -19,7 +19,7 @@ instance Monad m => Applicative (StateT e m) where
 instance Monad m => Monad (StateT e m) where
   return = StateT . (return .) . (,)
   StateT s >>= f = StateT $ \e -> do
-    (a, e') <- s e 
+    (a, e') <- s e
     runStateT (f a) e'
 
 instance Monad m => MonadFail (StateT e m) where
@@ -43,9 +43,36 @@ execStateT = (fmap snd .) . runStateT
 get :: Monad m => StateT s m s
 get = StateT $ return . join (,)
 
+gets :: Monad m => (s -> a) -> StateT s m a
+gets = flip fmap get
+
+mapState :: ((a, s) -> (b, s)) -> State s a -> State s b
+mapState f = mapStateT (Identity . f . runIdentity)
+
+mapStateT :: (m (a, s) -> n (b, s)) -> StateT s m a -> StateT s n b
+mapStateT f (StateT s) = StateT $ \e -> f (s e)
+
+modify :: Monad m => (s -> s) -> StateT s m ()
+modify f = get >>= put . f
+
+modify' :: Monad m => (s -> s) -> StateT s m ()
+modify' f = get >>= ($!) put . f
+
 put :: Monad m => s -> StateT s m ()
 put s = StateT $ const $ return ((), s)
 
+runState :: State s a -> s -> (a, s)
+runState = (runIdentity .) . runStateT
+
+-- Constructor
+state :: Monad m => (s -> (a, s)) -> StateT s m a
+state = StateT . (return .)
+
+withState :: (s -> s) -> State s a -> State s a
+withState = withStateT
+
+withStateT :: Monad m => (s -> s) -> StateT s m a -> StateT s m a
+withStateT f m = modify f >> m
 
 -- Simple Text Editor. Start from an empty text, then apply a number of queries.
 -- 1 arg: append arg to the end of the text;
@@ -56,7 +83,7 @@ put s = StateT $ const $ return ((), s)
 main :: IO ()
 main = do
   numQuery <- readLn :: IO Int
-  evalStateT (forM_ [1..numQuery] $ const $ lift getLine >>= operate) [T.empty] 
+  evalStateT (forM_ [1..numQuery] $ const $ lift getLine >>= operate) [T.empty]
 
 operate :: String -> StateT [Text] IO ()
 operate ('1' : ' ' : args) = do

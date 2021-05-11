@@ -1,8 +1,51 @@
-import Control.Monad ( forM_ )
-import Control.Monad.Trans.State ( evalStateT, get, put, StateT )
-import Control.Monad.Trans.Class ( MonadTrans(lift) )
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Trans.Class
 import Data.Text as T
-    ( concat, index, length, pack, take, empty, Text )
+import Data.Functor.Identity
+
+-- TODO: Implement your own State Monad
+newtype StateT e m a = StateT { runStateT :: e -> m (a, e) }
+
+type State r = StateT r Identity
+
+instance Monad m => Functor (StateT e m) where
+  fmap = liftM
+
+instance Monad m => Applicative (StateT e m) where
+  pure  = return
+  (<*>) = ap
+
+instance Monad m => Monad (StateT e m) where
+  return = StateT . (return .) . (,)
+  StateT s >>= f = StateT $ \e -> do
+    (a, e') <- s e 
+    runStateT (f a) e'
+
+instance Monad m => MonadFail (StateT e m) where
+  fail = error
+
+instance MonadTrans (StateT e) where
+  lift m = StateT $ \e -> m >>= \a -> return (a, e)
+
+evalState :: State e a -> e -> a
+evalState = (runIdentity .) . evalStateT
+
+evalStateT :: Monad m => StateT e m a -> e -> m a
+evalStateT = (fmap fst .) . runStateT
+
+execState :: State e a -> e -> e
+execState = (runIdentity .) . execStateT
+
+execStateT :: Monad m => StateT e m a -> e -> m e
+execStateT = (fmap snd .) . runStateT
+
+get :: Monad m => StateT s m s
+get = StateT $ return . join (,)
+
+put :: Monad m => s -> StateT s m ()
+put s = StateT $ const $ return ((), s)
+
 
 -- Simple Text Editor. Start from an empty text, then apply a number of queries.
 -- 1 arg: append arg to the end of the text;

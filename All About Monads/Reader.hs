@@ -1,9 +1,10 @@
-import Data.Functor.Identity
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Class
+import Data.Functor.Identity
 
--- TODO: Implement your own ReaderT Monad
+-- Implementation of ReaderT
+
 newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
 
 type Reader r = ReaderT r Identity
@@ -22,6 +23,9 @@ instance Monad m => Monad (ReaderT r m) where
   return = ReaderT . const . return
   ReaderT r >>= f
     = ReaderT $ \a -> r a >>= \a' -> runReaderT (f a') a
+
+instance Monad m => MonadFail (ReaderT e m) where
+  fail = error
 
 instance MonadTrans (ReaderT r) where
   lift = ReaderT . const
@@ -54,6 +58,8 @@ withReader = withReaderT
 withReaderT :: (r' -> r) -> ReaderT r m a -> ReaderT r' m a
 withReaderT f (ReaderT r) 
   = ReaderT $ r . f
+
+-- Example
 
 tom :: Monad m => ReaderT String m String
 tom = do

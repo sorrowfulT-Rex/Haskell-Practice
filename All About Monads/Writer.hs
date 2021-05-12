@@ -42,6 +42,18 @@ execWriterT = fmap snd . runWriterT
 listen :: (Monoid w, Monad m) => WriterT w m a -> WriterT w m (a, w)
 listen (WriterT s) = WriterT $ s >>= \(a, w) -> return ((a, w), w)
 
+listens :: (Monoid w, Monad m) 
+        => (w -> b) 
+        -> WriterT w m a 
+        -> WriterT w m (a, b)
+listens f s = listen s >>= \(a, w) -> return (a, f w)
+
+mapWriter :: ((a, w) -> (b, w')) -> Writer w a -> Writer w' b
+mapWriter f = mapWriterT (return . f . runIdentity)
+
+mapWriterT :: (m (a, w) -> n (b, w')) -> WriterT w m a -> WriterT w' n b
+mapWriterT f (WriterT s) = WriterT $ f s
+
 pass :: (Monoid w, Monad m) => WriterT w m (a, w -> w) -> WriterT w m a
 pass (WriterT s) = WriterT $ s >>= \((a, f), w) -> return (a, f w)
 

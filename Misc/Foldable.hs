@@ -1,9 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+import Data.Bool
+import Data.Function
 import Data.Semigroup hiding (Endo, appEndo)
+import Data.Maybe
 import Data.Monoid hiding (Endo, appEndo)
 import Prelude 
-  (Bool, Eq, Int, Ord, Num, flip, fmap, id, (.), ($), (+), (*), ($!))
+  (Bool, Eq, Int, Ord, Num, flip, fmap, id, (.), ($), (+), (*), (**), ($!))
 
 newtype Endo a = Endo { appEndo :: a -> a }
 
@@ -47,7 +50,7 @@ class Foldable t where
   -- There is another way to implement foldl (from foldr).
   -- Here the f' function takes an element of the Foldable and an endomorphism
   -- on b, returning another b -> b. 
-  -- For example, suppose xs = [a1, a2, a3], then foldl' f c xs is
+  -- For example, suppose xs = [a1, a2, a3], then foldr' f c xs is
   -- f' a1 (f' a2 (f' a3 id)) c. Now f' a3 id is \e -> f' a3 id e, or
   -- \e -> id $! f e a3 = \e -> f e a3.
   -- f' a2 (f' a3 id) is \e' -> f' a2 (\e -> f e a3) e' =
@@ -62,16 +65,36 @@ class Foldable t where
       f' x m z = m $! f z x
 
   -- Similarly.
+  -- Suppose xs = [a1, a2, a3], then foldl' f c xs is
+  -- f' (f' (f' id a1) a2) a3 c. Now f' id a1 is \e -> f' id a1 e, which is
+  -- \e -> f a1 e or f a1. f' (f' id a1) a2 is f' (f a1) a2, or
+  -- \e -> f a1 (f a2 e).
+  -- We can expand it out and the result is the same.
   foldr' :: (a -> b -> b) -> b -> t a -> b
   foldr' f c xs = foldl f' id xs c
     where
     f' m x z = m $! f x z
 
-  -- foldr1 :: (a -> a -> a) -> t a -> a
-  -- foldl1 :: (a -> a -> a) -> t a -> a
-  -- toList :: t a -> [a]
-  -- null :: t a -> Bool
-  -- length :: t a -> Int
+  foldr1 :: (a -> a -> a) -> t a -> a
+  foldr1 f xs = fromJust $ foldr f' Nothing xs
+    where
+      f' x Nothing   = Just x
+      f' x (Just x') = Just $ f x x'
+
+  foldl1 :: (a -> a -> a) -> t a -> a
+  foldl1 f xs = fromJust $ foldl f' Nothing xs
+    where
+      f' Nothing x   = Just x
+      f' (Just x) x' = Just $ f x x'
+
+  toList :: t a -> [a]
+  toList = foldr (:) []
+
+  null :: t a -> Bool
+  null = foldr (const $ const False) True
+
+  length :: t a -> Int
+  length = foldl' (\acc _ -> acc + 1) 0
 
 instance Foldable [] where
   foldMap f xs = mconcat $ fmap f xs

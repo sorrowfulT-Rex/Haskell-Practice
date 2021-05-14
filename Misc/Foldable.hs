@@ -1,12 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+import Control.Applicative
 import Data.Bool
 import Data.Function
 import Data.Semigroup hiding (Endo, appEndo)
 import Data.Maybe
 import Data.Monoid hiding (Endo, appEndo)
 import Prelude 
-  (Bool, Eq, Int, Ord, Num, flip, fmap, id, (.), ($), (+), (*), (**), ($!))
+  ( Bool, Eq, Int, Ord, Num, Show, flip, fmap, even, id, (.), ($), (+), (*)
+  , ($!), (==)
+  )
 
 newtype Endo a = Endo { appEndo :: a -> a }
 
@@ -98,3 +101,46 @@ class Foldable t where
 
 instance Foldable [] where
   foldMap f xs = mconcat $ fmap f xs
+
+
+-- Fold exercises
+
+product :: (Foldable t, Num a) => t a -> a
+product = getProduct . foldMap Product
+
+concat :: Foldable t => t [a] -> [a]
+concat = fold
+
+concatMap :: Foldable t => (a -> [b]) -> t a -> [b]
+concatMap = foldMap
+
+all :: Foldable t => (a -> Bool) -> t a -> Bool
+all f xs = getAll (foldMap (All . f) xs)
+
+elem :: (Foldable t, Eq a) => a -> t a -> Bool
+elem x xs = getAny (foldMap (Any . ( == x)) xs)
+
+len :: Foldable t => t a -> Int
+len = getSum . foldMap (const $ Sum 1)
+
+
+-- Foldable laws:
+
+-- foldMap is the same as applying f to each element then fold.
+  -- 1. foldMap f = fold . fmap f
+
+-- Applying a function (g) on a fold on another function f is the same as
+-- applying the composition of the two functions (g . f) then fold.
+  -- 2. foldMap (g . f) = g . foldMap f
+
+-- Derived laws:
+
+-- Fold on a function (g) after mapping f is the same as applying g to the
+-- monolithic value obtained by foldMap f.
+  -- 3. foldMap g . fmap f = g . foldMap f
+-- Proof:
+  --   foldMap g . fmap f
+  -- = fold . fmap g . fmap f         by 1)
+  -- = fold . fmap (g . f)            by Functor law 2)
+  -- = foldMap (g . f)                by 1)
+  -- = g . foldMap f                  by 2)

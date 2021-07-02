@@ -105,23 +105,17 @@ parse ts
         (JObj rObj, ts'') = go ts' (Key Nothing)
 
     -- Literals
-    go (JTComma : ts) flag             = go ts flag
-    go (JTStr str : ts) KeyDisabled    = (JList (JStr str : rem), ts')
+    go (JTComma : ts) flag = go ts flag
+    go (token : ts) KeyDisabled
+      | JTStr str <- token = (JList (JStr str : rem), ts')
+      | JTBool b  <- token = (JList (JBool b : rem), ts')
+      | JTNum n   <- token = (JList (JNum n : rem), ts')
       where
         (JList rem, ts') = go ts KeyDisabled
-    go (JTBool b : ts) KeyDisabled     = (JList (JBool b : rem), ts')
-      where
-        (JList rem, ts') = go ts KeyDisabled
-    go (JTNum n : ts) KeyDisabled      = (JList (JNum n : rem), ts')
-      where
-        (JList rem, ts') = go ts KeyDisabled
-    go (JTStr str : ts) (Key (Just s)) = (JObj ((s, JStr str) : rem), ts')
-      where
-        (JObj rem, ts') = go ts (Key Nothing)
-    go (JTBool b : ts) (Key (Just s))  = (JObj ((s, JBool b) : rem), ts')
-      where
-        (JObj rem, ts') = go ts (Key Nothing)
-    go (JTNum n : ts) (Key (Just s))   = (JObj ((s, JNum n) : rem), ts')
+    go (token : ts) (Key (Just s))
+      | JTStr str <- token = (JObj ((s, JStr str) : rem), ts')
+      | JTBool b  <- token = (JObj ((s, JBool b) : rem), ts')
+      | JTNum n   <- token = (JObj ((s, JNum n) : rem), ts')
       where
         (JObj rem, ts') = go ts (Key Nothing)
 

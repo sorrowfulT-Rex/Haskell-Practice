@@ -2,6 +2,10 @@ import           Data.Char (isAlpha, isSpace, isDigit)
 import           Data.List (intercalate)
 import           Text.Read (readMaybe)
 
+
+-- |
+-- The JSON data structure.
+--
 data JSON 
   = JBool Bool
   | JNum Double
@@ -9,6 +13,10 @@ data JSON
   | JList [JSON]
   | JObj [(String, JSON)]
 
+
+-- |
+-- Tokens for JSON strings.
+--
 data JToken
   = JTLSB
   | JTRSB
@@ -21,9 +29,16 @@ data JToken
   | JTStr String
   deriving Show
 
+
+-- |
+-- A helper data structure used in the parse function.
+-- @KeyDisabled@ means the parser is not immediately in an object; otherwise
+-- the @Maybe String@ represents the latest key, if exists.
+--
 data JKey
   = KeyDisabled
   | Key (Maybe String)
+
 
 instance Show JSON where
   show (JBool b)  = if b then "true" else "false"
@@ -38,8 +53,12 @@ instance Show JSON where
       show' []           = ""
       show' ((k, v) : o) = ", " ++ show k ++ " : " ++ show v ++ show' o
 
+
 tokenise :: String -> [JToken]
+-- Base Case
 tokenise []          = []
+
+-- Symbols
 tokenise ('[' : str) = JTLSB : tokenise str
 tokenise (']' : str) = JTRSB : tokenise str
 tokenise ('{' : str) = JTLCB : tokenise str
@@ -48,17 +67,23 @@ tokenise (':' : str) = JTColon : tokenise str
 tokenise (',' : str) = JTComma : tokenise str
 tokenise (ch : str)
   | isSpace ch = tokenise str
+
+-- String
 tokenise ('\"' : str)
   | not (null rest) = JTStr token : tokenise (tail rest)
   where
     (token, rest) = break (== '\"') str
+
+-- Number/Bool
 tokenise str
   | Just n <- readMaybe token :: Maybe Double = JTNum n : tokenise rest
+  -- Note that in JSON booleans are in all lowercase
   | token == "true"                           = JTBool True : tokenise rest
   | token == "false"                          = JTBool False : tokenise rest
   | otherwise                                 = error "Tokenise Error"
   where
     (token, rest) = break (`elem` "{}[],: \n\t\v\r\f") str
+
 
 parse :: [JToken] -> JSON
 parse ts 

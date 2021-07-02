@@ -48,12 +48,15 @@ tokenise (':' : str) = JTColon : tokenise str
 tokenise (',' : str) = JTComma : tokenise str
 tokenise (ch : str)
   | isSpace ch = tokenise str
+tokenise ('\"' : str)
+  | not (null rest) = JTStr token : tokenise (tail rest)
+  where
+    (token, rest) = break (== '\"') str
 tokenise str
-  | Just n <- readMaybe token :: Maybe Double   = JTNum n : tokenise rest
-  | token == "true"                             = JTBool True : tokenise rest
-  | token == "false"                            = JTBool False : tokenise rest
-  | Just s <- readMaybe token :: Maybe String = JTStr s : tokenise rest
-  | otherwise                                   = error "Tokenise Error"
+  | Just n <- readMaybe token :: Maybe Double = JTNum n : tokenise rest
+  | token == "true"                           = JTBool True : tokenise rest
+  | token == "false"                          = JTBool False : tokenise rest
+  | otherwise                                 = error "Tokenise Error"
   where
     (token, rest) = break (`elem` "{}[],: \n\t\v\r\f") str
 
@@ -128,9 +131,12 @@ parse ts
     -- Invalid key
     go bruh (Key Nothing) = error $ "Invalid key!" ++ show bruh
 
+-- Convert a String to JSON, then print it out.
+-- The output should be the same as the input.
 main :: IO ()
 main = do
-  undefined
+  str <- getLine
+  print $ parse $ tokenise str
 
 json1 :: JSON
 json1 = JList [JNum 3.1, JBool False, JObj [("1", JStr "114514")]]
@@ -138,8 +144,16 @@ json1 = JList [JNum 3.1, JBool False, JObj [("1", JStr "114514")]]
 json2 :: JSON
 json2 = JObj [("prime", json1), ("foo", JBool True)]
 
+json3 :: JSON
+json3 = JObj [("first", json2), ("second", JNum 3.2), ("third", json1)]
+
 txt1 :: String
 txt1 = "[3.1, false, {\"1\" : 114514}]"
 
 txt2 :: String
 txt2 = "{\"prime\" : [3.1, false, {\"1\" : \"114514\"}], \"foo\" : true}"
+
+txt3 :: String
+txt3 = "{\"first\" : {\"prime\" : [3.1, false, {\"1\" : \"114514\"}], \
+       \\"foo\" : true}, \"second\" : 3.2, \"third\" : [3.1, false, {\"1\" : \
+       \\"114514\"}]}"

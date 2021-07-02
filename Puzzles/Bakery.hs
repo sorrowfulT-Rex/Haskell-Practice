@@ -5,8 +5,8 @@ import           Data.Array.Unboxed (UArray, array)
 import           Data.Array.Unsafe (unsafeThaw)
 
 -- A bakery can make a profit of P[k] on a cake made with k units of mixture 
--- (for any k ≥ 1). Write a progra面to compute the maximum profit achievable if 
--- the bakery has a total of n units of mixture at its disposal. 
+-- (for any k ≥ 1). Write a program to compute the maximum profit achievable if 
+-- the bakery has a total of n units of mixture at its disposal.
 -- Here n and k are natural numbers and the total mixture is to be divided into 
 -- whole number units.
 -- Your code should use a bottom-up (non-recursive) dynamic programming style.

@@ -12,6 +12,7 @@ data JSON
   | JStr String
   | JList [JSON]
   | JObj [(String, JSON)]
+  | JDummy
 
 
 -- |
@@ -27,7 +28,7 @@ data JToken
   | JTBool Bool
   | JTNum Double
   | JTStr String
-  deriving Show
+  deriving (Eq, Show)
 
 
 -- |
@@ -52,6 +53,7 @@ instance Show JSON where
     where
       show' []           = ""
       show' ((k, v) : o) = ", " ++ show k ++ " : " ++ show v ++ show' o
+  show _          = error "Dummy type should be unreachable!"
 
 
 tokenise :: String -> [JToken]
@@ -80,16 +82,33 @@ tokenise str
   -- Note that in JSON booleans are in all lowercase
   | token == "true"                           = JTBool True : tokenise rest
   | token == "false"                          = JTBool False : tokenise rest
-  | otherwise                                 = error "Tokenise Error"
+  | otherwise                                 = error "Tokenise Error!"
   where
     (token, rest) = break (`elem` "{}[],: \n\t\v\r\f") str
 
 
 parse :: [JToken] -> JSON
+parse [] = error "No Tokens!"
 parse ts 
-  | (JList [res], []) <- go ts KeyDisabled = res
-  | otherwise                              = error "Extra tokens!"
+  | (JList [res], _) <- go ts KeyDisabled    = res
+  | otherwise                                = error "Extra tokens!"
   where
+    -- Get the content of lists, return [] for other types
+    getList (JList xs) = xs
+    getList _          = []
+
+    -- Get the content of objects, return [] for other types
+    getObj (JObj xs) = xs
+    getObj _         = []
+
+    -- Get the content of lists, error for other types
+    getList' (JList xs) = xs
+    getList' _          = error "Missing closing brackets!"
+
+    -- Get the content of objects, error for other types
+    getObj' (JObj xs) = xs
+    getObj' _         = error "Missing closing brackets!"
+
     -- Invalid commas & colons
     go (JTLSB : JTComma : _) _   = error "Comma following a bracket!"
     go (JTLCB : JTComma : _) _   = error "Comma following a bracket!"
@@ -103,52 +122,59 @@ parse ts
     -- Invalid right braces
     go (JTRCB : _) KeyDisabled = error "Mismatched brackets!"
     go (JTRSB : _) (Key _)     = error "Mismatched brackets!"
+    go (JTRCB : token : ts) _
+      | token /= JTRCB && token /= JTRSB && token /= JTComma 
+        = error "Mismatched brackets!"
+    go (JTRSB : token : ts) _
+      | token /= JTRCB && token /= JTRSB && token /= JTComma 
+        = error "Mismatched brackets!"
 
     -- Base case
-    go [] _ = (JList [], [])
+    go [] _ = (JDummy, error "Missing closing brackets!")
 
     -- Curly braces
     go (JTRCB : ts) _              = (JObj [], ts)
-    go (JTLCB : ts) KeyDisabled    = (JList (lObj : rList), ts'')
+    go (JTLCB : ts) KeyDisabled    = (JList (lObj : getList rList), ts'')
       where
-        (lObj, ts')         = go ts (Key Nothing)
-        (JList rList, ts'') = go ts' KeyDisabled
-    go (JTLCB : ts) (Key (Just s)) = (JObj ((s, lObj) : rObj), ts'')
+        (lObj, ts')   = go ts (Key Nothing)
+        (rList, ts'') = go ts' KeyDisabled
+    go (JTLCB : ts) (Key (Just s)) = (JObj ((s, lObj) : getObj rObj), ts'')
       where
-        (lObj, ts')        = go ts (Key Nothing)
-        (JObj rObj, ts'') = go ts' (Key Nothing)
+        (lObj, ts')  = go ts (Key Nothing)
+        (rObj, ts'') = go ts' (Key Nothing)
 
     -- Square braces
     go (JTRSB : ts) _                = (JList [], ts)
-    go (JTLSB : ts) KeyDisabled      = (JList (lList : rList), ts'')
+    go (JTLSB : ts) KeyDisabled      = (JList (lList : getList rList), ts'')
       where
-        (lList, ts')        = go ts KeyDisabled
-        (JList rList, ts'') = go ts' KeyDisabled
-    go (JTLSB : ts) (Key (Just str)) = (JObj ((str, lList) : rObj), ts'')
+        (lList, ts')  = go ts KeyDisabled
+        (rList, ts'') = go ts' KeyDisabled
+    go (JTLSB : ts) (Key (Just s)) = (JObj ((s, lList) : getObj rObj), ts'')
       where
-        (lList, ts')      = go ts KeyDisabled
-        (JObj rObj, ts'') = go ts' (Key Nothing)
+        (lList, ts') = go ts KeyDisabled
+        (rObj, ts'') = go ts' (Key Nothing)
 
     -- Literals
     go (JTComma : ts) flag = go ts flag
     go (token : ts) KeyDisabled
-      | JTStr str <- token = (JList (JStr str : rem), ts')
-      | JTBool b  <- token = (JList (JBool b : rem), ts')
-      | JTNum n   <- token = (JList (JNum n : rem), ts')
+      | JTStr str <- token = (JList (JStr str : getList' rem), ts')
+      | JTBool b  <- token = (JList (JBool b : getList' rem), ts')
+      | JTNum n   <- token = (JList (JNum n : getList' rem), ts')
       where
-        (JList rem, ts') = go ts KeyDisabled
+        (rem, ts') = go ts KeyDisabled
     go (token : ts) (Key (Just s))
-      | JTStr str <- token = (JObj ((s, JStr str) : rem), ts')
-      | JTBool b  <- token = (JObj ((s, JBool b) : rem), ts')
-      | JTNum n   <- token = (JObj ((s, JNum n) : rem), ts')
+      | JTStr str <- token = (JObj ((s, JStr str) : getObj' rem), ts')
+      | JTBool b  <- token = (JObj ((s, JBool b) : getObj' rem), ts')
+      | JTNum n   <- token = (JObj ((s, JNum n) : getObj' rem), ts')
       where
-        (JObj rem, ts') = go ts (Key Nothing)
+        (rem, ts') = go ts (Key Nothing)
 
     -- Valid key
     go (JTStr str : JTColon : ts) (Key Nothing) = go ts (Key $ Just str)
 
     -- Invalid key
-    go bruh (Key Nothing) = error $ "Invalid key!" ++ show bruh
+    go _ (Key Nothing) = error "Invalid key!"
+
 
 -- Convert a String to JSON, then print it out.
 -- The output should be the same as the input.
